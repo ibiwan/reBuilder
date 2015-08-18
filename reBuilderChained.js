@@ -56,7 +56,7 @@ function reBuilder(){
 
     this.or = function(){
         this.add.apply(this, a2a(arguments)); // pushes results to waiting[]
-        var inner = smartPop();               // poor man's "return" without breaking literacy
+        var inner = smartPop();               // poor man's "return" without breaking fluency
 
         waiting.push(                         // "return" results
             [].concat(
@@ -65,7 +65,7 @@ function reBuilder(){
                 [')']
             )
         );
-        return this;                          // be literate
+        return this;                          // be fluent
     };
 
     this.repeat = function(min, max, greedy){
