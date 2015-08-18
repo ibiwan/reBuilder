@@ -10,16 +10,10 @@ function reBuilder(){
 
     var a2a = function a2a(args, start){start = start || 0; return [].slice.call(args, start);};
 
-    var flatten = function flatten() {
-        var flat = [], i;
-        for (i = 0; i < arguments.length; i++) {
-            if (arguments[i] instanceof Array) {
-                flat = flat.concat(flatten.apply(null, arguments[i]));
-            } else {
-                flat.push(arguments[i]);
-            }
-        }
-        return flat;
+    var flatten = function flatten(arr) {
+        return arr.reduce(function (flat, toFlatten) {
+            return flat.concat(Array.isArray(toFlatten) ? flatten(toFlatten) : toFlatten);
+        }, []);
     };
 
     var smartPop = function smartPop(){
@@ -29,14 +23,20 @@ function reBuilder(){
     };
 
     var aJoin = function aJoin(glue, ary){
-        var ret = [];
-        for(i = 0; i < ary.length; i++){
-            ret.push(ary[i]);
-            if(i < ary.length - 1){
-                ret.push(glue);
-            }
-        }
-        return ret;
+        return ary.reduce(function(prev, curr, idx, orig){
+            prev.push(curr);
+            if(idx < orig.length - 1){ prev.push(glue); }
+            return prev;
+        }, []);
+    };
+
+    var smartCall = function smartCall(f, that, parms){ // use "waiting" stack to implement function returns while maintaining fluency
+        f.apply(that, parms);
+        return smartPop();
+    };
+
+    var smartReturn = function smartReturn(ret){
+        waiting.push(ret);
     };
 
     this.anchorStart = function(){
@@ -50,22 +50,20 @@ function reBuilder(){
     };
 
     this.add = function(){
-        waiting.push(a2a(arguments));
+        smartReturn(a2a(arguments));
         return this;
     };
 
     this.or = function(){
-        this.add.apply(this, a2a(arguments)); // pushes results to waiting[]
-        var inner = smartPop();               // poor man's "return" without breaking fluency
-
-        waiting.push(                         // "return" results
+        var inner = smartCall(this.add, this, a2a(arguments));
+        smartReturn(
             [].concat(
                 ['(?:'],
                 aJoin('|', inner),
                 [')']
             )
         );
-        return this;                          // be fluent
+        return this;
     };
 
     this.repeat = function(min, max, greedy){
@@ -90,16 +88,38 @@ function reBuilder(){
             }
         }
 
-        this.add.apply(this, a2a(arguments, 3));
-        var inner = smartPop();
-        waiting.push([inner, counter]);
+        var inner = smartCall(this.add, this, a2a(arguments, 3));
+        smartReturn([inner, counter]);
 
         return this;
     };
 
+    this.charDigit = function(){
+        return '\\d';
+    };
+
+    this.named = function(tag) {
+        names.push(tag);
+        smartReturn(smartCall(this.capture, this, a2a(arguments, 1)));
+        return this;
+    };
+
+    this.capture = function(){
+        var inner = smartCall(this.add, this, a2a(arguments));
+        smartReturn(
+            [].concat(
+                ['('],
+                aJoin('|', inner),
+                [')']
+            )
+        );
+        return this;
+    };
+
+
     this.generate = function(){
         expr = (anchorStart ? '^' : '') + flatten(waiting).join('') + (anchorEnd ? '$' : '');
-        console.log('GENERATED', expr);
+        // console.log('GENERATED', expr);
         try
         {
             return new RegExp(expr);
@@ -110,21 +130,5 @@ function reBuilder(){
             return null;
         }
     };
-
-    this.charDigit = function(){
-        return '\\d';
-    };
-
-    // this.named = function(tag) {
-    //     names.push(tag);
-    //     expr += this.capture.apply(this, a2a(arguments, 1));
-    //     return this;
-    // };
-
-    this.capture = function(){
-        expr += '(' + this.concat.apply(this, arguments) + ')';
-        return this;
-    };
-
 
 }
