@@ -3,7 +3,7 @@
 var template = "/^abc(?:d|e|f)x{1,3}12y??((?:p|q)+)(z)/";
 
 var rb = new reBuilder();
-var q = rb
+var re = rb
     .add('a')
     .add('b', 'c')            // add any number of items
     .or(                      // specify any number of options
@@ -24,9 +24,8 @@ var q = rb
         'mytag',
         'z'
     )
+    .generate()                // must be last
 ;
-
-var re = rb.generate();
 console.log('re:', re);
 
 if(re !== null){
@@ -41,3 +40,15 @@ if(re !== null){
         console.log('match', strings[i], strings[i].match(re));
     }
 }
+
+
+ // some more examples, taken from http://regexone.com/ exercises
+
+rb = new reBuilder();
+console.log('/abc.*/',
+    rb
+        .add('abc')
+        .repeat(0, Infinity, true,
+            rb.add('.'))
+        .generate()
+);
